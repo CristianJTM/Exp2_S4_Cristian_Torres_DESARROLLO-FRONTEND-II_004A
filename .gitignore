@@ -11,6 +11,7 @@ Thumbs.db
 
 *.log
 npm-debug.log*
+opencode.json
 
 # Documentación interna: solo el README se versiona
 *.md
