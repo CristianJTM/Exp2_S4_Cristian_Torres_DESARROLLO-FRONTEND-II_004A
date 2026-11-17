@@ -87,8 +87,12 @@ export const booksByGenre = {
   drama: [],
 }
 
+// La ruta se resuelve contra el base de Vite: en GitHub Pages el worker se
+// registra en /<repo>/ y solo intercepta peticiones dentro de ese scope.
+const API_BOOKS = `${import.meta.env.BASE_URL}api/books`
+
 export const handlers = [
-  http.get('/api/books', async ({ request }) => {
+  http.get(API_BOOKS, async ({ request }) => {
     // Latencia simulada en todas las ramas, incluido el 404.
     await delay(1000)
 
