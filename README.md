@@ -80,25 +80,3 @@ Consecuencia esperada: en `npm run build` + `npm run preview` no hay mock ni
 backend, así que las páginas de género muestran el mensaje de error de conexión.
 La app está pensada para ejecutarse con `npm run dev`.
 
-## Despliegue en GitHub Pages
-
-El sitio se publica desde la rama `gh_pages`:
-
-```bash
-npm run deploy
-```
-
-`predeploy` compila el proyecto y `postbuild` copia `dist/index.html` a
-`dist/404.html`, de modo que un enlace directo (`/genre/ficcion`) o un refresco
-sigan cargando la SPA.
-
-- URL: <https://cristianjtm.github.io/Exp2_S4_Cristian_Torres_DESARROLLO-FRONTEND-II_004A/>
-- Configuración en GitHub: *Settings → Pages → Source: Deploy from a branch →
-  Branch: `gh_pages` / (root)*.
-- El `base` de Vite se define con la constante `REPO` en `vite.config.js`: si el
-  repositorio cambia de nombre, actualiza ese valor.
-
-> En Pages se sirve un build de producción, así que el mock está apagado: la
-> portada funciona, pero al entrar a una categoría se ve el estado de error.
-> Es el comportamiento esperado y la evidencia de que MSW no viaja al build.
-
