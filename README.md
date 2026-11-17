@@ -84,12 +84,24 @@ La app reenvía al mock el parámetro `fail` que venga en la URL (ver
 `process.env.NODE_ENV`) y un `import()` dinámico, por lo que MSW **no** se incluye
 en el build de producción.
 
-En el build de demostración (`vite build --mode pages`) el mock sí se activa: el
-worker se registra con `import.meta.env.BASE_URL` y la ruta de la API se arma
-igual (`<base>api/books`) tanto en el handler como en el hook, para que la
-petición quede dentro del scope del service worker.
+En el build de demostración (`vite build --mode pages`) el mock sí se activa.
 
-Consecuencia esperada: en `npm run build` + `npm run preview` no hay mock ni
-backend, así que las páginas de género muestran el mensaje de error de conexión.
-La app está pensada para ejecutarse con `npm run dev`.
+### MSW en local y en GitHub Pages
+
+El mismo mock corre en ambos entornos; cambia solo el prefijo de la URL.
+
+- **Local (`npm run dev`):** `BASE_URL` es `/`, el worker se registra en la raíz
+  con scope `/` y la API es `/api/books`.
+- **GitHub Pages:** `BASE_URL` es `/<repo>/`, el worker queda con scope
+  `/<repo>/` y la API es `/<repo>/api/books`. La ruta se arma con
+  `import.meta.env.BASE_URL` tanto en el handler como en el hook, porque un
+  service worker solo intercepta las peticiones dentro de su scope: si se pidiera
+  `/api/books` a la raíz del dominio, el worker no la vería.
+- **`npm run build` (producción normal):** el mock no se carga; en
+  `npm run preview` las páginas de género muestran el error de conexión.
+- Si actualizas la demo publicada, haz un *hard refresh*: el navegador puede
+  conservar el service worker anterior.
+
+La app está pensada para ejecutarse con `npm run dev` o con el build de
+demostración (`--mode pages`).
 
