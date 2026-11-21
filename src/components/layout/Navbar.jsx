@@ -1,5 +1,5 @@
 import { Link, NavLink } from 'react-router'
-import { CATEGORIAS } from '../../data/categorias.js'
+import { useCategoriasContext } from '../../context/CategoriasContext.jsx'
 
 function claseEnlace({ isActive }) {
   return [
@@ -11,6 +11,8 @@ function claseEnlace({ isActive }) {
 }
 
 export default function Navbar() {
+  const { categorias } = useCategoriasContext()
+
   return (
     <header className="sticky top-0 z-10 border-b border-stone-200 bg-white/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
@@ -30,7 +32,7 @@ export default function Navbar() {
           </NavLink>
 
           <div className="hidden items-center gap-1 md:flex">
-            {CATEGORIAS.map((categoria) => (
+            {(categorias ?? []).map((categoria) => (
               <NavLink
                 key={categoria.slug}
                 to={`/genre/${categoria.slug}`}
