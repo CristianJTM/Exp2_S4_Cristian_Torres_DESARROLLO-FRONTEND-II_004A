@@ -1,5 +1,5 @@
-import { Link, useParams } from 'react-router'
-import { getCategoriaPorSlug } from '../data/categorias.js'
+import { Link, useParams, useSearchParams } from 'react-router'
+import { useCategoriasContext } from '../context/CategoriasContext.jsx'
 import { useLibros } from '../hooks/useLibros.js'
 import BookCard from '../components/ui/BookCard.jsx'
 import LoadingSpinner from '../components/ui/LoadingSpinner.jsx'
@@ -7,15 +7,35 @@ import ErrorMessage from '../components/ui/ErrorMessage.jsx'
 import EmptyState from '../components/ui/EmptyState.jsx'
 
 function capitalizar(texto = '') {
-  return texto.charAt(0).toUpperCase() + texto.slice(1).replaceAll('-', ' ')
+  return texto
+    .replaceAll('-', ' ')
+    .replace(/\b\w/g, (letra) => letra.toUpperCase())
 }
+
+// Un 404 de género no se arregla reintentando la misma URL: la salida es
+// volver al catálogo. Los demás fallos sí pueden ser transitorios.
+const ERRORES_NO_REINTENTABLES = new Set(['not-found', 'bad-request'])
 
 export default function GenreBooks() {
   const { genre } = useParams()
-  const { libros, loading, error, retry } = useLibros(genre)
+  const [searchParams] = useSearchParams()
+  const fail = searchParams.get('fail') ?? undefined
 
-  const categoria = getCategoriaPorSlug(genre)
+  // La URL del router (?fail=...) es la fuente de verdad: si cambia con la
+  // vista montada, useLibros aborta la petición anterior y consulta de nuevo.
+  const { libros, loading, error, retry } = useLibros(genre, { fail })
+  const { categorias } = useCategoriasContext()
+
+  const categoria = categorias?.find((item) => item.slug === genre)
   const titulo = categoria?.nombre ?? capitalizar(genre)
+  const noEncontrado = error?.kind === 'not-found'
+  const puedeReintentar = Boolean(
+    error && !ERRORES_NO_REINTENTABLES.has(error.kind),
+  )
+
+  const mensajeError = noEncontrado
+    ? `No encontramos el género “${titulo}”. Puede que no exista en el catálogo.`
+    : error?.message
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-10">
@@ -56,9 +76,13 @@ export default function GenreBooks() {
 
         {!loading && error && (
           <ErrorMessage
-            title="No pudimos mostrar los libros"
-            message={error}
-            onRetry={retry}
+            title={
+              noEncontrado
+                ? 'Ese género no existe'
+                : 'No pudimos mostrar los libros'
+            }
+            message={mensajeError}
+            onRetry={puedeReintentar ? retry : undefined}
           >
             <Link
               to="/"

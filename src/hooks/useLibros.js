@@ -1,105 +1,39 @@
-import { useCallback, useEffect, useState } from 'react'
+import { API_BASE } from '../lib/api.js'
+import { useRecurso } from './useRecurso.js'
 
-// La API vive bajo el base de Vite: en GitHub Pages el service worker de MSW
-// queda registrado en /<repo>/ y solo intercepta peticiones dentro de ese
-// scope, así que no podemos pedir a la raíz del dominio.
-const API_BOOKS = `${import.meta.env.BASE_URL}api/books`
-
-function mensajeParaStatus(status, genre) {
-  if (status === 404) {
-    return `No encontramos el género “${genre}”. Puede que no exista en el catálogo.`
-  }
-  if (status >= 500) {
-    return 'El servidor tuvo un problema al cargar los libros. Intenta nuevamente en unos segundos.'
-  }
-  return `No pudimos cargar los libros (código ${status}).`
+function esLibro(libro) {
+  return (
+    libro !== null &&
+    typeof libro === 'object' &&
+    typeof libro.id === 'string' &&
+    typeof libro.title === 'string' &&
+    typeof libro.author === 'string' &&
+    typeof libro.price === 'number'
+  )
 }
 
+const esListaDeLibros = (data) =>
+  Array.isArray(data) && data.every(esLibro)
+
 /**
- * Encapsula la petición de libros: fetch, AbortController y estados.
+ * Encapsula la petición de libros de una categoría.
  *
  * @param {string | undefined} genre  Slug de la categoría.
- * @returns {{ libros: object[] | null, loading: boolean, error: string | null, retry: () => void }}
+ * @param {{ fail?: string }} options Escotilla de pruebas del mock (?fail=...).
+ * @returns {{ libros: object[] | null, loading: boolean, error: ApiError | null, retry: () => void }}
  */
-export function useLibros(genre) {
-  const [libros, setLibros] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-  const [reload, setReload] = useState(0)
+export function useLibros(genre, { fail } = {}) {
+  let url = null
 
-  useEffect(() => {
-    // Sin género no hay nada que pedir.
-    if (!genre) {
-      setLibros(null)
-      setError(null)
-      setLoading(false)
-      return
-    }
-
-    let activo = true
-    const controller = new AbortController()
-
-    setLoading(true)
-    setError(null)
-    setLibros(null)
-
-    // Escotilla de pruebas del mock: /genre/misterio?fail=500 | ?fail=network
-    const fail = new URLSearchParams(window.location.search).get('fail')
+  if (genre) {
     const params = new URLSearchParams({ genre })
     if (fail) params.set('fail', fail)
+    url = `${API_BASE}/books?${params.toString()}`
+  }
 
-    async function cargarLibros() {
-      try {
-        const res = await fetch(`${API_BOOKS}?${params.toString()}`, {
-          signal: controller.signal,
-        })
+  const { data, loading, error, retry } = useRecurso(url, {
+    validate: esListaDeLibros,
+  })
 
-        if (!activo) return
-
-        if (!res.ok) {
-          // El mock explica el motivo en { error }. Si el body no es JSON,
-          // caemos a un mensaje según el status (404 y 5xx distintos).
-          const body = await res.json().catch(() => null)
-          if (!activo) return
-          setError(body?.error ?? mensajeParaStatus(res.status, genre))
-          return
-        }
-
-        let data
-        try {
-          data = await res.json()
-        } catch {
-          if (activo) setError('La respuesta del servidor no es válida.')
-          return
-        }
-
-        if (!Array.isArray(data)) {
-          if (activo) setError('La respuesta del servidor no es válida.')
-          return
-        }
-
-        if (activo) setLibros(data)
-      } catch (err) {
-        // Un abort es intencional: no es un error para el usuario.
-        if (err.name === 'AbortError' || !activo) return
-        setError(
-          'No pudimos conectar con el servidor. Revisa tu conexión e intenta de nuevo.',
-        )
-      } finally {
-        if (activo) setLoading(false)
-      }
-    }
-
-    cargarLibros()
-
-    // Cleanup: invalida la respuesta en vuelo y cancela la petición.
-    return () => {
-      activo = false
-      controller.abort()
-    }
-  }, [genre, reload])
-
-  const retry = useCallback(() => setReload((n) => n + 1), [])
-
-  return { libros, loading, error, retry }
+  return { libros: data, loading, error, retry }
 }
